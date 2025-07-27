@@ -1,0 +1,192 @@
+Objective:
+Build a complete, functional web application that solves raw material sourcing challenges for Indian street food vendors, focusing on a specific, validated pain point.
+
+Problem Definition Requirements:
+
+Conduct virtual user research by imagining interactions with 3 street food vendors in different regions (Mumbai chaat stall, Delhi paratha cart, Bangalore dosa stand)
+
+Identify 5 key pain points in their current raw material procurement process
+
+Select one core problem to solve (e.g., last-minute emergency supplies, quality verification, group purchasing)
+
+Define 3 measurable success metrics for the solution
+
+Solution Architecture:
+
+Build a dual-interface platform (vendor + supplier sides)
+
+Must include:
+
+Real-time inventory management
+
+Location-based supplier discovery
+
+Price comparison engine
+
+Order tracking system
+
+Rating/verification system
+
+Technical Requirements:
+
+Tech Stack: Next.js + Firebase (Firestore, Auth, Storage) + Tailwind CSS
+
+Must implement:
+
+Geolocation API for proximity-based results
+
+Real-time database updates
+
+Secure authentication (phone/email)
+
+Responsive design (mobile-first)
+
+Offline capability for low-connectivity areas
+
+Design Specifications:
+
+Visual Style:
+
+Modern Indian aesthetic with vibrant food colors (oranges, yellows, greens)
+
+Clean, spacious layout with intuitive navigation
+
+High-contrast typography for outdoor visibility
+
+Animated micro-interactions for key actions
+
+Required Screens:
+
+Vendor:
+
+Emergency supply dashboard
+
+Bulk order calculator
+
+Delivery tracking map view
+
+Supplier:
+
+Inventory management console
+
+Order fulfillment workflow
+
+Performance analytics
+
+AI Integration:
+
+Implement ChatGPT API for:
+
+Smart supplier recommendations
+
+Price negotiation assistance
+
+Multilingual support (Hindi/English toggle)
+
+Computer vision for:
+
+Quality verification via uploads
+
+Expiry date detection
+
+Quality Standards:
+
+All interactive elements must have:
+
+Loading states
+
+Error handling
+
+Empty states
+
+Performance:
+
+<3s load time
+
+<500kb main bundle
+
+Lighthouse score >90
+
+Deployment Plan:
+
+Frontend: Vercel with CI/CD
+
+Backend: Firebase project with:
+
+Firestore security rules
+
+Storage buckets
+
+Cloud functions
+
+Monitoring: Sentry for error tracking
+
+Documentation Requirements:
+
+Video submission script outline:
+
+0-60s: Problem story (show vendor struggles)
+
+1-2m: Solution demo (key workflows)
+
+2-3m: Technical highlights
+
+3-4m: Impact potential
+
+4-5m: Team reflection
+
+GitHub repo must include:
+
+Proper folder structure
+
+README with setup instructions
+
+License file
+
+Evaluation Optimization:
+
+Prioritize these fully-functional flows:
+
+Vendor emergency order placement (5min SLA)
+
+Supplier inventory sync
+
+Real-time delivery tracking
+
+Review/rating system
+
+Design Inspiration Keywords:
+"Modern dabbawala logistics UI", "Swiggy seller dashboard", "Uber-like tracking simplicity", "WhatsApp-level intuitive", "Reliance JioMart vendor app"
+
+Constraints:
+
+No Figma-only submissions
+
+Must handle at least 50 concurrent users
+
+All CTAs must work
+
+No placeholder content
+
+Support basic accessibility (WCAG AA)
+
+Special Considerations:
+
+Include QR code-based login for vendors
+
+Add voice note capability for order notes
+
+Implement SMS fallback for notifications
+
+Create printable order summaries
+
+Success Metrics:
+The solution will be judged on:
+
+Problem-solution fit (30%)
+
+Technical implementation (25%)
+
+Design quality (20%)
+
+Innovation (15%)
