@@ -212,3 +212,183 @@ export default function EmergencyOrder() {
     </div>
   );
 }
+import React, { useState } from 'react';
+import { useLocation } from 'wouter';
+import { useMutation } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useAppContext } from '@/App';
+import { useToast } from '@/hooks/use-toast';
+
+export default function EmergencyOrder() {
+  const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [orderDetails, setOrderDetails] = useState({
+    items: '',
+    deliveryAddress: '',
+    notes: '',
+    urgencyLevel: 'high' as 'high' | 'critical',
+  });
+
+  const emergencyOrderMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+      if (!response.ok) throw new Error('Failed to place emergency order');
+      return response.json();
+    },
+    onSuccess: (order) => {
+      toast({ 
+        title: "🚨 Emergency order placed!", 
+        description: `Order #${order.id} is being processed urgently` 
+      });
+      dispatch({ type: 'CLEAR_CART' });
+      setLocation(`/order-tracking/${order.id}`);
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to place emergency order", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleEmergencyOrder = async () => {
+    if (!state.vendor || !orderDetails.items.trim()) {
+      toast({ title: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    // For emergency orders, we'll create a simplified order structure
+    const orderData = {
+      vendorId: state.vendor.userId,
+      supplierId: 1, // Default emergency supplier - in real app this would be selected
+      items: [
+        {
+          productId: 1, // Default emergency product
+          quantity: 1,
+          pricePerUnit: 0, // Emergency orders might have special pricing
+        }
+      ],
+      deliveryAddress: orderDetails.deliveryAddress || state.vendor.stallLocation,
+      notes: `EMERGENCY ORDER: ${orderDetails.items}\n\nUrgency: ${orderDetails.urgencyLevel}\n\nNotes: ${orderDetails.notes}`,
+      isEmergency: true,
+    };
+
+    emergencyOrderMutation.mutate(orderData);
+  };
+
+  if (!state.vendor) {
+    return (
+      <div className="p-4 text-center">
+        <h2 className="text-xl font-bold mb-4">Access Restricted</h2>
+        <p>Only vendors can place emergency orders.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="text-center space-y-2">
+        <div className="text-6xl">🚨</div>
+        <h1 className="text-2xl font-bold text-red-600">Emergency Order</h1>
+        <p className="text-muted-foreground">Get urgent supplies delivered quickly</p>
+      </div>
+
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="text-red-600">Emergency Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">What do you need urgently? *</label>
+            <Textarea
+              placeholder="Describe what you need immediately (e.g., 5kg onions, 2kg tomatoes, cooking oil)"
+              value={orderDetails.items}
+              onChange={(e) => setOrderDetails(prev => ({ ...prev, items: e.target.value }))}
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Urgency Level</label>
+            <div className="flex gap-2 mt-1">
+              <Button
+                type="button"
+                variant={orderDetails.urgencyLevel === 'high' ? 'default' : 'outline'}
+                onClick={() => setOrderDetails(prev => ({ ...prev, urgencyLevel: 'high' }))}
+                className="flex-1"
+              >
+                High (30 min)
+              </Button>
+              <Button
+                type="button"
+                variant={orderDetails.urgencyLevel === 'critical' ? 'destructive' : 'outline'}
+                onClick={() => setOrderDetails(prev => ({ ...prev, urgencyLevel: 'critical' }))}
+                className="flex-1"
+              >
+                Critical (15 min)
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Delivery Address</label>
+            <Input
+              placeholder="Delivery address (leave blank to use your stall location)"
+              value={orderDetails.deliveryAddress}
+              onChange={(e) => setOrderDetails(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Additional Notes</label>
+            <Textarea
+              placeholder="Any special instructions or context about the emergency"
+              value={orderDetails.notes}
+              onChange={(e) => setOrderDetails(prev => ({ ...prev, notes: e.target.value }))}
+              className="mt-1"
+              rows={2}
+            />
+          </div>
+
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <h3 className="font-medium text-yellow-800 mb-2">⚡ Emergency Service</h3>
+            <ul className="text-sm text-yellow-700 space-y-1">
+              <li>• Priority processing and delivery</li>
+              <li>• Real-time tracking available</li>
+              <li>• Direct supplier contact</li>
+              <li>• Emergency service charges may apply</li>
+            </ul>
+          </div>
+
+          <Button 
+            onClick={handleEmergencyOrder}
+            disabled={emergencyOrderMutation.isPending || !orderDetails.items.trim()}
+            className="w-full bg-red-600 hover:bg-red-700"
+            size="lg"
+          >
+            {emergencyOrderMutation.isPending ? "Placing Emergency Order..." : "🚨 Place Emergency Order"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="text-center">
+        <Button 
+          variant="outline" 
+          onClick={() => setLocation('/')}
+        >
+          Back to Home
+        </Button>
+      </div>
+    </div>
+  );
+}
