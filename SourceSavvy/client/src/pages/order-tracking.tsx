@@ -443,3 +443,241 @@ export default function OrderTracking() {
     </div>
   );
 }
+import React from 'react';
+import { useRoute } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useAppContext } from '@/App';
+import type { Order } from '@/types';
+
+function OrderTimeline({ order }: { order: Order }) {
+  const getStatusSteps = () => {
+    const steps = [
+      { key: 'pending', label: 'Order Placed', icon: '📝' },
+      { key: 'confirmed', label: 'Confirmed', icon: '✅' },
+      { key: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
+      { key: 'out_for_delivery', label: 'Out for Delivery', icon: '🚚' },
+      { key: 'delivered', label: 'Delivered', icon: '🎉' },
+    ];
+
+    const currentStepIndex = steps.findIndex(step => step.key === order.status);
+    
+    return steps.map((step, index) => ({
+      ...step,
+      completed: index <= currentStepIndex,
+      current: index === currentStepIndex,
+    }));
+  };
+
+  const steps = getStatusSteps();
+
+  return (
+    <div className="space-y-4">
+      {steps.map((step, index) => (
+        <div key={step.key} className="flex items-center gap-4">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+            step.completed 
+              ? 'bg-green-500 text-white' 
+              : step.current 
+                ? 'bg-blue-500 text-white animate-pulse'
+                : 'bg-gray-200 text-gray-500'
+          }`}>
+            {step.completed ? '✓' : index + 1}
+          </div>
+          <div className="flex-1">
+            <p className={`font-medium ${step.completed || step.current ? 'text-primary' : 'text-muted-foreground'}`}>
+              {step.icon} {step.label}
+            </p>
+            {step.current && (
+              <p className="text-sm text-blue-600">Current status</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function OrderTracking() {
+  const [match, params] = useRoute('/order-tracking/:orderId');
+  const { state } = useAppContext();
+  const orderId = params?.orderId;
+
+  const { data: order, isLoading, error } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: async () => {
+      const response = await fetch(`/api/orders/${orderId}`);
+      if (!response.ok) throw new Error('Failed to fetch order');
+      return response.json() as Promise<Order & { items: any[] }>;
+    },
+    enabled: !!orderId,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+  });
+
+  if (!match || !orderId) {
+    return (
+      <div className="p-4 text-center">
+        <h2 className="text-xl font-bold mb-4">Invalid Order</h2>
+        <p>Order ID not found in URL.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-4">
+        <Card className="h-32 animate-pulse">
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="p-4 text-center space-y-4">
+        <div className="text-6xl">❌</div>
+        <h2 className="text-xl font-bold">Order Not Found</h2>
+        <p className="text-muted-foreground">The order you're looking for doesn't exist or you don't have access to it.</p>
+        <Button onClick={() => window.history.back()}>Go Back</Button>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      confirmed: 'bg-blue-100 text-blue-700',
+      preparing: 'bg-orange-100 text-orange-700',
+      out_for_delivery: 'bg-purple-100 text-purple-700',
+      delivered: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl font-bold">Order Tracking</h1>
+        <p className="text-muted-foreground">Order #{order.id}</p>
+      </div>
+
+      {/* Order Status Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle>Order Status</CardTitle>
+            <div className="text-right">
+              <Badge className={getStatusColor(order.status)}>
+                {order.status.replace('_', ' ').toUpperCase()}
+              </Badge>
+              {order.isEmergency && (
+                <Badge variant="destructive" className="ml-2">🚨 Emergency</Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <OrderTimeline order={order} />
+        </CardContent>
+      </Card>
+
+      {/* Order Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Order Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium">Order Date</p>
+              <p className="text-sm text-muted-foreground">
+                {new Date(order.createdAt).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Total Amount</p>
+              <p className="text-lg font-bold text-primary">₹{order.totalAmount}</p>
+            </div>
+          </div>
+
+          {order.estimatedDelivery && (
+            <div>
+              <p className="text-sm font-medium">Estimated Delivery</p>
+              <p className="text-sm text-muted-foreground">
+                {new Date(order.estimatedDelivery).toLocaleString()}
+              </p>
+            </div>
+          )}
+
+          {order.deliveryAddress && (
+            <div>
+              <p className="text-sm font-medium">Delivery Address</p>
+              <p className="text-sm text-muted-foreground">{order.deliveryAddress}</p>
+            </div>
+          )}
+
+          {order.notes && (
+            <div>
+              <p className="text-sm font-medium">Notes</p>
+              <p className="text-sm text-muted-foreground">{order.notes}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Order Items */}
+      {order.items && order.items.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {order.items.map((item: any, index: number) => (
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">Item #{index + 1}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Quantity: {item.quantity} | Price: ₹{item.pricePerUnit}
+                    </p>
+                  </div>
+                  <p className="font-bold">₹{item.totalPrice}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Emergency Contact */}
+      {order.isEmergency && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <h3 className="font-medium text-red-800 mb-2">🚨 Emergency Order Support</h3>
+            <p className="text-sm text-red-700 mb-3">
+              Need immediate assistance with your emergency order?
+            </p>
+            <Button variant="destructive" size="sm">
+              Contact Emergency Support
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="text-center">
+        <Button variant="outline" onClick={() => window.history.back()}>
+          Go Back
+        </Button>
+      </div>
+    </div>
+  );
+}
