@@ -230,3 +230,261 @@ export default function VendorDashboard() {
     </div>
   );
 }
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppContext } from '@/App';
+import { useToast } from '@/hooks/use-toast';
+import type { Order } from '@/types';
+
+function OrderCard({ order }: { order: Order }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      if (!response.ok) throw new Error('Failed to cancel order');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-orders'] });
+      toast({ title: "Order cancelled successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to cancel order", variant: "destructive" });
+    },
+  });
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      confirmed: 'bg-blue-100 text-blue-700',
+      preparing: 'bg-orange-100 text-orange-700',
+      out_for_delivery: 'bg-purple-100 text-purple-700',
+      delivered: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg">Order #{order.id}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {new Date(order.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="text-right">
+            <Badge className={getStatusColor(order.status)}>
+              {order.status.replace('_', ' ').toUpperCase()}
+            </Badge>
+            {order.isEmergency && (
+              <Badge variant="destructive" className="ml-2">🚨 Emergency</Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="font-medium">Total Amount: ₹{order.totalAmount}</p>
+          <p className="text-sm text-muted-foreground">
+            Estimated Delivery: {new Date(order.estimatedDelivery).toLocaleString()}
+          </p>
+        </div>
+        
+        {order.deliveryAddress && (
+          <div>
+            <p className="text-sm font-medium">Delivery Address:</p>
+            <p className="text-sm text-muted-foreground">{order.deliveryAddress}</p>
+          </div>
+        )}
+
+        {order.notes && (
+          <div>
+            <p className="text-sm font-medium">Notes:</p>
+            <p className="text-sm text-muted-foreground">{order.notes}</p>
+          </div>
+        )}
+
+        {order.status === 'pending' && (
+          <Button 
+            variant="destructive" 
+            onClick={() => cancelOrderMutation.mutate(order.id)}
+            disabled={cancelOrderMutation.isPending}
+          >
+            Cancel Order
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatsCard({ title, value, icon }: { title: string; value: string | number; icon: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+            <p className="text-2xl font-bold">{value}</p>
+          </div>
+          <div className="text-2xl">{icon}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function VendorDashboard() {
+  const { state } = useAppContext();
+  const [activeTab, setActiveTab] = useState('orders');
+
+  const { data: orders, isLoading: ordersLoading } = useQuery({
+    queryKey: ['vendor-orders', state.vendor?.id],
+    queryFn: async () => {
+      if (!state.vendor) return [];
+      const response = await fetch(`/api/orders/vendor/${state.vendor.userId}`);
+      if (!response.ok) throw new Error('Failed to fetch orders');
+      return response.json() as Promise<Order[]>;
+    },
+    enabled: !!state.vendor,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['vendor-stats', state.vendor?.id],
+    queryFn: async () => {
+      if (!state.vendor) return null;
+      const response = await fetch(`/api/vendors/${state.vendor.id}/stats`);
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return response.json();
+    },
+    enabled: !!state.vendor,
+  });
+
+  if (!state.vendor) {
+    return (
+      <div className="p-4 text-center">
+        <h2 className="text-xl font-bold mb-4">Access Restricted</h2>
+        <p>Only vendors can access this dashboard.</p>
+      </div>
+    );
+  }
+
+  const pendingOrders = orders?.filter(order => order.status === 'pending') || [];
+  const completedOrders = orders?.filter(order => order.status === 'delivered') || [];
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold gradient-text">Vendor Dashboard</h1>
+        <p className="text-muted-foreground">{state.vendor.businessName}</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-4">
+        <StatsCard 
+          title="Total Orders" 
+          value={orders?.length || 0} 
+          icon="📦" 
+        />
+        <StatsCard 
+          title="Pending Orders" 
+          value={pendingOrders.length} 
+          icon="⏳" 
+        />
+        <StatsCard 
+          title="Completed Orders" 
+          value={completedOrders.length} 
+          icon="✅" 
+        />
+        <StatsCard 
+          title="This Month" 
+          value={stats?.ordersThisMonth || 0} 
+          icon="📈" 
+        />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="orders">All Orders</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingOrders.length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders" className="space-y-4">
+          {ordersLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="h-32 animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-6 bg-gray-300 rounded w-1/4"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : orders && orders.length > 0 ? (
+            <div className="space-y-4">
+              {orders.map(order => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-6xl">📦</div>
+              <h3 className="text-lg font-medium">No orders yet</h3>
+              <p className="text-muted-foreground">Start placing orders to see them here</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4">
+          {pendingOrders.length > 0 ? (
+            <div className="space-y-4">
+              {pendingOrders.map(order => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-6xl">⏳</div>
+              <h3 className="text-lg font-medium">No pending orders</h3>
+              <p className="text-muted-foreground">All your orders are being processed</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          {completedOrders.length > 0 ? (
+            <div className="space-y-4">
+              {completedOrders.map(order => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-6xl">✅</div>
+              <h3 className="text-lg font-medium">No completed orders</h3>
+              <p className="text-muted-foreground">Completed orders will appear here</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
