@@ -1,239 +1,374 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Filter, MapPin, Star, Clock, ArrowLeft } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function SearchPage() {
-  const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const [sortBy, setSortBy] = useState("price");
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppContext } from '@/App';
+import { useToast } from '@/hooks/use-toast';
+import type { Product, Category, CartItem } from '@/types';
 
-  // Extract query parameters from URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const queryParam = urlParams.get('q');
-    const categoryParam = urlParams.get('category');
-    
-    if (queryParam) setSearchQuery(queryParam);
-    if (categoryParam) setCategory(categoryParam);
-  }, []);
+// Product Card Component
+function ProductCard({ 
+  product, 
+  onAddToCart, 
+  cartItem 
+}: { 
+  product: Product & { supplierName: string; distance?: number };
+  onAddToCart: (product: Product & { supplierName: string }) => void;
+  cartItem?: CartItem;
+}) {
+  const [quantity, setQuantity] = useState(1);
 
-  // Mock search results - in production, this would come from API
-  const mockResults = [
-    {
-      id: "1",
-      name: "Fresh Tomatoes",
-      supplier: "Raj Vegetable Mart",
-      price: 30,
-      unit: "kg",
-      rating: 4.5,
-      distance: "1.2 km",
-      image: "🍅",
-      category: "Vegetables",
-      availability: "In Stock"
-    },
-    {
-      id: "2",
-      name: "Basmati Rice",
-      supplier: "Grain World",
-      price: 80,
-      unit: "kg",
-      rating: 4.8,
-      distance: "2.1 km",
-      image: "🌾",
-      category: "Grains",
-      availability: "In Stock"
-    },
-    {
-      id: "3",
-      name: "Red Chili Powder",
-      supplier: "Spice Palace",
-      price: 200,
-      unit: "kg",
-      rating: 4.6,
-      distance: "0.8 km",
-      image: "🌶️",
-      category: "Spices",
-      availability: "Limited"
-    },
-    {
-      id: "4",
-      name: "Cooking Oil",
-      supplier: "Oil Express",
-      price: 120,
-      unit: "liter",
-      rating: 4.3,
-      distance: "1.5 km",
-      image: "🫗",
-      category: "Oil",
-      availability: "In Stock"
-    }
-  ];
-
-  const filteredResults = mockResults.filter(item => {
-    const matchesQuery = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !category || item.category === category;
-    return matchesQuery && matchesCategory;
-  });
-
-  const sortedResults = [...filteredResults].sort((a, b) => {
-    switch (sortBy) {
-      case "price":
-        return a.price - b.price;
-      case "rating":
-        return b.rating - a.rating;
-      case "distance":
-        return parseFloat(a.distance) - parseFloat(b.distance);
-      default:
-        return 0;
-    }
-  });
+  const handleAddToCart = () => {
+    onAddToCart(product);
+    setQuantity(1);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white sticky top-0 z-10">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setLocation('/')}
-              className="text-white hover:bg-white/20 p-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold">Search Results</h1>
-              <p className="text-sm text-orange-100">
-                {sortedResults.length} products found
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-md mx-auto p-4 space-y-4">
-        {/* Search and Filter */}
+    <Card className="h-full">
+      <CardContent className="p-4">
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex justify-between items-start">
+            <h3 className="font-medium text-lg">{product.name}</h3>
+            <Badge variant={product.isAvailable ? "default" : "secondary"}>
+              {product.isAvailable ? "Available" : "Out of Stock"}
+            </Badge>
           </div>
           
-          <div className="flex space-x-2">
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
-                <SelectItem value="Vegetables">Vegetables</SelectItem>
-                <SelectItem value="Spices">Spices</SelectItem>
-                <SelectItem value="Grains">Grains</SelectItem>
-                <SelectItem value="Oil">Oil</SelectItem>
-                <SelectItem value="Dairy">Dairy</SelectItem>
-              </SelectContent>
-            </Select>
+          {product.description && (
+            <p className="text-sm text-muted-foreground">{product.description}</p>
+          )}
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-bold text-primary">
+                ₹{product.pricePerUnit}/{product.unit}
+              </span>
+              {product.distance && (
+                <span className="text-xs text-muted-foreground">
+                  {product.distance.toFixed(1)} km away
+                </span>
+              )}
+            </div>
             
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="flex-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="price">Price: Low to High</SelectItem>
-                <SelectItem value="rating">Rating: High to Low</SelectItem>
-                <SelectItem value="distance">Distance: Near to Far</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="text-sm text-muted-foreground">
+              <p>Supplier: {product.supplierName}</p>
+              <p>Min order: {product.minOrderQuantity} {product.unit}</p>
+              <p>Stock: {product.stockQuantity} {product.unit}</p>
+            </div>
           </div>
-        </div>
 
-        {/* Results */}
-        <div className="space-y-3">
-          {sortedResults.map((item) => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-start space-x-3">
-                  <div className="text-3xl">{item.image}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {item.name}
-                        </h3>
-                        <p className="text-sm text-gray-600">{item.supplier}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-lg text-green-600">
-                          ₹{item.price}/{item.unit}
-                        </div>
-                        <Badge 
-                          variant={item.availability === "In Stock" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {item.availability}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span>{item.rating}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <MapPin className="h-4 w-4" />
-                        <span>{item.distance}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>30 min</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-2 mt-3">
-                  <Button size="sm" className="flex-1">
-                    Add to Cart
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    Quick Order
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {sortedResults.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900">No results found</h3>
-            <p className="text-gray-600 mt-2">
-              Try adjusting your search terms or filters
-            </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={product.minOrderQuantity}
+              max={product.stockQuantity}
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              className="w-20"
+            />
             <Button 
-              onClick={() => setLocation('/')}
-              className="mt-4"
+              onClick={handleAddToCart}
+              disabled={!product.isAvailable || quantity < product.minOrderQuantity}
+              className="flex-1"
             >
-              Back to Home
+              Add to Cart
             </Button>
           </div>
-        )}
+
+          {cartItem && (
+            <div className="text-sm text-green-600">
+              In cart: {cartItem.quantity} {product.unit}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Cart Component
+function CartTab() {
+  const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const totalAmount = state.cart.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
+
+  const handleUpdateQuantity = (productId: number, quantity: number) => {
+    dispatch({ type: 'UPDATE_CART_ITEM', payload: { productId, quantity } });
+  };
+
+  const handleRemoveItem = (productId: number) => {
+    dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+    toast({ title: "Item removed from cart" });
+  };
+
+  const handleCheckout = () => {
+    if (state.cart.length === 0) return;
+    setLocation('/checkout');
+  };
+
+  if (state.cart.length === 0) {
+    return (
+      <div className="text-center py-8 space-y-4">
+        <div className="text-6xl">🛒</div>
+        <h3 className="text-lg font-medium">Your cart is empty</h3>
+        <p className="text-muted-foreground">Add some products to get started</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {state.cart.map((item) => (
+        <Card key={item.productId}>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h3 className="font-medium">{item.productName}</h3>
+                <p className="text-sm text-muted-foreground">
+                  ₹{item.pricePerUnit}/{item.unit}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  value={item.quantity}
+                  onChange={(e) => handleUpdateQuantity(item.productId, parseInt(e.target.value) || 1)}
+                  className="w-20"
+                />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleRemoveItem(item.productId)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+            <div className="mt-2 text-right">
+              <span className="font-medium">
+                Total: ₹{(item.pricePerUnit * item.quantity).toFixed(2)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      
+      <Card className="border-primary">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-bold">Total: ₹{totalAmount.toFixed(2)}</span>
+            <Button onClick={handleCheckout} size="lg">
+              Proceed to Checkout
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Main Search Component
+export default function Search() {
+  const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
+  const [location] = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+
+  // Get URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryParam = urlParams.get('category');
+    const searchParam = urlParams.get('search');
+    
+    if (categoryParam) {
+      setSelectedCategory(parseInt(categoryParam));
+    }
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+  }, [location]);
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      return response.json() as Promise<Category[]>;
+    },
+  });
+
+  const { data: products, isLoading } = useQuery({
+    queryKey: ['products', selectedCategory, searchQuery, state.currentLocation],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedCategory) params.append('categoryId', selectedCategory.toString());
+      if (searchQuery) params.append('search', searchQuery);
+      if (state.currentLocation) {
+        params.append('lat', state.currentLocation.latitude.toString());
+        params.append('lng', state.currentLocation.longitude.toString());
+      }
+
+      const response = await fetch(`/api/products?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json() as Promise<Product[]>;
+    },
+    enabled: !!(selectedCategory || searchQuery),
+  });
+
+  const handleAddToCart = (product: Product & { supplierName: string }) => {
+    if (!state.vendor) {
+      toast({ title: "Access denied", description: "Only vendors can add items to cart", variant: "destructive" });
+      return;
+    }
+
+    const cartItem: CartItem = {
+      productId: product.id,
+      productName: product.name,
+      supplierId: product.supplierId,
+      supplierName: product.supplierName,
+      pricePerUnit: product.pricePerUnit,
+      unit: product.unit,
+      quantity: 1,
+      minOrderQuantity: product.minOrderQuantity,
+    };
+
+    dispatch({ type: 'ADD_TO_CART', payload: cartItem });
+    toast({ title: "Added to cart", description: `${product.name} added successfully` });
+  };
+
+  const getCartItem = (productId: number): CartItem | undefined => {
+    return state.cart.find(item => item.productId === productId);
+  };
+
+  const handleCategorySelect = (categoryId: number | null) => {
+    setSelectedCategory(categoryId);
+    setSearchQuery('');
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setSelectedCategory(null);
+  };
+
+  if (!state.vendor) {
+    return (
+      <div className="p-4 text-center">
+        <h2 className="text-xl font-bold mb-4">Access Restricted</h2>
+        <p>Only vendors can access the search functionality.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-6">
+      <Tabs defaultValue="search" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="search">Search Products</TabsTrigger>
+          <TabsTrigger value="cart">
+            Cart ({state.cart.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="search" className="space-y-6">
+          {/* Search Bar */}
+          <div className="space-y-4">
+            <Input
+              type="text"
+              placeholder="Search for products..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Categories */}
+          {categories && categories.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Categories</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={selectedCategory === null ? "default" : "outline"}
+                  onClick={() => handleCategorySelect(null)}
+                  size="sm"
+                >
+                  All
+                </Button>
+                {categories.map((category) => (
+                  <Button
+                    key={category.id}
+                    variant={selectedCategory === category.id ? "default" : "outline"}
+                    onClick={() => handleCategorySelect(category.id)}
+                    size="sm"
+                  >
+                    {category.icon} {category.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Location Status */}
+          {state.currentLocation && (
+            <Badge variant="secondary" className="text-xs">
+              📍 Showing results near you
+            </Badge>
+          )}
+
+          {/* Products Grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="h-48 animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div className="h-4 bg-gray-300 rounded"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      <div className="h-6 bg-gray-300 rounded w-1/3"></div>
+                      <div className="h-8 bg-gray-300 rounded"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : products && products.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                  cartItem={getCartItem(product.id)}
+                />
+              ))}
+            </div>
+          ) : (selectedCategory || searchQuery) ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-6xl">🔍</div>
+              <h3 className="text-lg font-medium">No products found</h3>
+              <p className="text-muted-foreground">Try adjusting your search or category filter</p>
+            </div>
+          ) : (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-6xl">🛍️</div>
+              <h3 className="text-lg font-medium">Start exploring</h3>
+              <p className="text-muted-foreground">Search for products or select a category</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="cart">
+          <CartTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
